@@ -1,7 +1,5 @@
-![Project Preview](project_preview.png)
-
 # Voice-Activated Audio Monitoring System
-
+![Project Preview](project_preview.png)
 This project is part of an internship advertisement solution developed for smart store environments. It is designed to automatically capture customer feedback at key store locations (like billing counters or product demo areas), where interactions are frequent.
 
 The system uses an **ESP32 microcontroller** with an analog microphone to **detect and record only when voice activity is present**. The recorded audio is **uploaded to an AWS S3 bucket**, and transcription is performed server-side using **Deepgram Speech-to-Text API**. Transcriptions are then used to derive meaningful customer feedback, enabling stores to respond intelligently and improve service.
