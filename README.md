@@ -1,50 +1,127 @@
-# Voice-Activated-Audio-Monitoring-System
-Voice Pulse is an ESP32-based project that detects voice activity using a microphone. It records audio only when voice is detected and manages file size efficiently. Designed for low-power, event-driven audio capture in smart embedded systems.
 # Voice-Activated Audio Monitoring System
 
-This project is a smart, ESP32-based embedded system that monitors voice activity using a microphone and records audio only when voice is detected. The recorded audio is sent to an AWS S3 bucket, and transcription is performed using the Deepgram API.
+This project is part of an internship advertisement solution developed for smart store environments. It is designed to automatically capture customer feedback at key store locations (like billing counters or product demo areas), where interactions are frequent.
 
-## Features
+The system uses an **ESP32 microcontroller** with an analog microphone to **detect and record only when voice activity is present**. The recorded audio is **uploaded to an AWS S3 bucket**, and transcription is performed server-side using **Deepgram Speech-to-Text API**. Transcriptions are then used to derive meaningful customer feedback, enabling stores to respond intelligently and improve service.
 
-- 🔊 **Voice Activity Detection (VAD):** Only records when human voice is detected, reducing storage and power consumption.
-- 🎙️ **Microphone Input:** Captures audio via an analog microphone module.
-- 💾 **Smart Storage Handling:** Automatically splits recordings into multiple files to keep each under 500KB.
-- 📡 **Wi-Fi Enabled:** Connects to a Wi-Fi network for real-time data transmission.
-- 🌐 **AWS S3 Integration:** Uploads recorded audio files to a designated S3 bucket.
-- 🧠 **Automatic Transcription:** Once uploaded, audio files are transcribed using Deepgram’s Speech-to-Text API.
-- 🔄 **RGB LED Feedback (Optional):** Indicates system status (e.g., Wi-Fi connected, recording active, idle).
+---
 
-## Hardware Requirements
+## 📌 Use Case: Real-Time Store Feedback Collection
 
-- ESP32 Development Board  
-- Analog Microphone (e.g., MAX9814 or MAX4466)  
-- RGB LED (Common Anode/Cathode) *(optional for status indication)*  
-- Power Supply or USB Cable  
+Retail chains often struggle to collect honest, spontaneous customer feedback. This system:
+- Listens **only when someone speaks**, reducing noise, storage, and privacy concerns.
+- Uses **voice activity detection (VAD)** to avoid idle recordings.
+- Sends audio to the cloud for **automatic transcription**.
+- Allows stores to analyze feedback **without manual effort**.
 
-## Software Requirements
+---
 
-- Arduino IDE with ESP32 board support  
-- AWS S3 bucket setup  
-- Deepgram API Key  
-- Libraries:
-  - `WiFi.h`
-  - `HTTPClient.h`
-  - `ArduinoJson.h`
-  - `SPIFFS` or `SD` (depending on storage method)
+## 🚀 Features
 
-## How It Works
+- 🔊 **Voice Detection:** Records only when voice is present using energy-based VAD.
+- 💾 **Onboard Recording:** Uses SD card to temporarily store `.adpcm` compressed audio.
+- 📶 **Wi-Fi Connectivity:** Automatically connects to Wi-Fi using a captive portal.
+- ☁️ **S3 Upload:** Uploads recorded audio files to a configured AWS S3 bucket.
+- 🧠 **Transcription Ready:** The server uses Deepgram to convert voice to text.
+- 🔄 **Non-blocking Upload:** Upload happens in a **separate FreeRTOS task**, so recording is **never interrupted**.
+- 🎇 **LED Status Feedback:** RGB LED shows system states (e.g., recording, Wi-Fi connected).
+- 🔘 **Reset Button:** Allows Wi-Fi settings reset by long pressing a hardware button.
 
-1. On power-up, the ESP32 connects to Wi-Fi.
-2. It continuously monitors the audio input for voice activity.
-3. When voice is detected:
-   - Audio is recorded and saved in chunks (max ~500KB each).
-   - Once a recording is complete or silence is prolonged, the audio is uploaded to AWS S3.
-4. A backend process or lambda function triggers transcription via Deepgram API using the uploaded file URL.
-5. Transcription output can be viewed, stored, or analyzed further.
+---
 
-## Setup Instructions
+## 🧩 Architecture
 
-1. **Configure Wi-Fi Credentials:**
+[Customer Speaking]
+↓
+[Mic + ESP32]
+↓ (ADPCM encoded)
+[SD Card - local buffer]
+↓
+[Wi-Fi Upload to AWS S3]
+↓
+[Server Side: Deepgram API]
+↓
+[Transcribed Feedback for Store]
+
+
+---
+
+## 🔄 Multi-Threaded Upload (Key Design Point)
+
+One major design consideration was ensuring **recording is never interrupted** during file uploads. To achieve this:
+
+- The **main loop** handles:
+  - I2S audio read
+  - Voice detection
+  - ADPCM compression
+  - Writing to SD card
+
+- A separate **FreeRTOS task (`uploadTask`)**:
+  - Scans SD card for `.adpcm` files
+  - Skips the currently recording file
+  - Uploads completed files via HTTP PUT to S3
+  - Notifies server via POST request with metadata
+
+This architecture **separates time-sensitive audio handling from network delays**, ensuring robust, uninterrupted performance.
+
+---
+
+## 🛠️ Hardware Used
+
+- ESP32-WROOM Dev Module
+- Analog Microphone (e.g., MAX4466 / MAX9814)
+- MicroSD Card Module (SPI)
+- RGB LED (Optional for status indication)
+- Pushbutton (for Wi-Fi reset)
+
+---
+
+## 📦 Software Components
+
+- **Arduino framework**
+- `WiFiManager` – dynamic Wi-Fi setup
+- `HTTPClient` – for S3 upload and server notifications
+- `SD.h` – file handling on SD card
+- `I2S` – audio input
+- `FreeRTOS` – multitasking (upload runs on core 1)
+
+---
+
+## ⚙️ Setup
+
+1. **Hardware Connections:**
+   - I2S Mic → ESP32 (WS, SCK, SD)
+   - SD Card → SPI Pins + CS
+   - LED → GPIO pins (optional)
+   - Button → GPIO18 (active low)
+
+2. **Firmware Configuration:**
+   Edit the following variables in the code:
    ```cpp
-   const char* ssid = "your_SSID";
-   const char* password = "your_PASSWORD";
+   String S3_UPLOAD_BASE_URL = "";  // S3 PUT URL prefix
+   const char* shop_name = "HILL";  // Store location name
+   jsonDoc["api_token"] = "";       // Your API token
+   rawData["shop_token"] = "";      // Your shop token
+   http.begin("");                  // Server endpoint
+
+3. Flashing the Firmware:
+
+Install the required libraries (WiFiManager, ArduinoJson, etc.)
+
+Select the ESP32 board and correct port
+
+Upload code via Arduino IDE
+
+🧠 Server-Side Integration
+Once the file is uploaded to AWS S3, the ESP32 sends a POST request to your backend server. The server then uses Deepgram API to transcribe the audio into text:
+
+Example Deepgram Request:
+POST https://api.deepgram.com/v1/listen
+Authorization: Token YOUR_DEEPGRAM_API_KEY
+{
+  "url": "https://your-bucket.s3.amazonaws.com/audio123.adpcm"
+}
+MIT License
+© 2025 Avishek Mandal
+
+
