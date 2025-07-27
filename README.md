@@ -1,3 +1,5 @@
+![Project Preview](Screenshot 2025-07-23 001848.png)
+
 # Voice-Activated Audio Monitoring System
 
 This project is part of an internship advertisement solution developed for smart store environments. It is designed to automatically capture customer feedback at key store locations (like billing counters or product demo areas), where interactions are frequent.
