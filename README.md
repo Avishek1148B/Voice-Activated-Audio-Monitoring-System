@@ -1,4 +1,4 @@
-![Project Preview](Screenshot 2025-07-23 001848.png)
+![Project Preview](project_preview.png)
 
 # Voice-Activated Audio Monitoring System
 
